@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+
+var fs = require("fs");
+var log = console.log;
+
+var promise = Promise.resolve();
+
+global.beg = function beg(value, func) {
+  var args = arguments, argc = args.length;
+  if (typeof func === "function") {
+    promise = promise.then(function () {
+      log(value);
+      return Promise.resolve(func());
+    }).catch(function (error) {
+      log("  \x1b[31m⦸ %s\x1b[0m", error && error.message || error);
+    });
+  }
+  else {
+    log(value ? "  \x1b[32m✔ %s\x1b[0m" : "  \x1b[31m✘ %s\x1b[0m", source());
+  }
+}
+
+function source() {
+  var trace = _where_(2);
+  var lines = getlines(trace.loc);
+  var source = lines[trace.row];
+  return source ? source.trim() : "< no topic >";
+}
+
+function _where_(deep) {
+  var stack = Error().stack.split("\n"), ms;
+  for (var i = 0, line; line = stack[i++];) {
+    if (line.match(reWhere)) break;
+  }
+  if (i < stack.length && (ms = String(stack[i + deep]).match(reHere))) {
+    return {
+      loc: ms[1],
+      row: ms[2] - 1
+    };
+  }
+}
+var reWhere = RegExp('\\b' + _where_.name + '\\b');
+var reHere = /((?:https?:\/\/[\w.-]+(?::\d+)?|)[\w./@-]+(?:\?.*|)):(\d+):(\d+)/;
+
+function getlines(path) {
+  if (path in getlines) {
+    path = getlines[path];
+  }
+  else {
+    path = getlines[path] = get(path).split("\n");
+  }
+  return path;
+}
+
+function get(path) {
+  return fs.readFileSync(path, "utf-8");
+}
+
+beg.delay = function (time, value) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, time, value);
+  });
+};
+
+var files = process.argv.slice(2);
+if (files.length) {
+  var path = require("path");
+
+  files.map(function (file) {
+    file = path.resolve(file);
+    file = path.relative(__dirname, file);
+    if (/^[^./]/.test(file)) {
+      file = "./" + file;
+    }
+    require(file);
+  });
+}
